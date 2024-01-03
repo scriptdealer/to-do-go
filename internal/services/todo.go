@@ -1,5 +1,7 @@
 package services
 
+//go:generate mockgen -destination=todo_mock.go -source=todo.go -package=services
+
 import (
 	"context"
 	"log/slog"
@@ -7,6 +9,14 @@ import (
 	"github.com/scriptdealer/to-do-go/internal/storage"
 	"github.com/scriptdealer/to-do-go/known"
 )
+
+type TodoLogic interface {
+	Create(title, description string) (*known.TodoItem, error)
+	Get(id int) (*known.TodoItem, error)
+	GetAll(ctx context.Context) ([]*known.TodoItem, error)
+	Update(id int, title, description string, done bool) (*known.TodoItem, error)
+	Delete(id int) error
+}
 
 type TodoService struct {
 	store storage.ToDoStore

@@ -48,7 +48,7 @@ func FilterByStatus(w http.ResponseWriter, r *http.Request) {
 
 func AddItem(w http.ResponseWriter, r *http.Request) {
 	var (
-		data ItemPatchRequest
+		data itemPatchRequest
 		todo *known.TodoItem
 	)
 	reqBody, _ := io.ReadAll(r.Body)
@@ -64,7 +64,7 @@ func AddItem(w http.ResponseWriter, r *http.Request) {
 
 func UpdateItem(w http.ResponseWriter, r *http.Request) {
 	var (
-		data ItemPatchRequest
+		data itemPatchRequest
 		todo *known.TodoItem
 	)
 	vars := mux.Vars(r)
@@ -79,6 +79,7 @@ func UpdateItem(w http.ResponseWriter, r *http.Request) {
 func DeleteItem(w http.ResponseWriter, r *http.Request) {
 	if ok := authCheck(r); !ok {
 		respondWith(w, nil, fmt.Errorf("not authorized"))
+		return
 	}
 	vars := mux.Vars(r)
 	id, _ := strconv.Atoi(vars["id"])
@@ -100,7 +101,7 @@ func authCheck(r *http.Request) bool {
 }
 
 func respondWith(w io.Writer, data any, err error) {
-	reply := fetchResponse{}
+	reply := apiResponse{}
 	if err == nil {
 		reply.Success = true
 		reply.Data = data

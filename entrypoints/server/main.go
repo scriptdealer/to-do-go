@@ -45,11 +45,14 @@ func main() {
 
 	//Injections
 	// db := storage.NewMemoryStorage()
-	db2, err := storage.NewPostgresStore(logger)
+	db, err := storage.NewPostgresStore(logger)
 	if err != nil {
 		os.Exit(1)
 	}
-	services := services.NewComposite(db2, logger)
+	services := services.NewComposite(
+		db, logger,
+		services.NewToDoService(db, logger),
+	)
 	gorillaMux := rest.InitHandlers(services)
 	server := &http.Server{
 		Addr:           fmt.Sprintf("%s:%s", config.ServerIP, config.ServerPort),

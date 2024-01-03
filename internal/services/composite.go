@@ -12,15 +12,15 @@ type Composition struct {
 	DB           storage.ToDoStore
 	Interruption chan os.Signal
 	Log          *slog.Logger
-	ToDos        *TodoService
+	ToDos        TodoLogic
 	// Users        *userService
 }
 
-func NewComposite(db storage.ToDoStore, logger *slog.Logger) *Composition {
+func NewComposite(db storage.ToDoStore, logger *slog.Logger, todos TodoLogic) *Composition {
 	return &Composition{
 		DB:           db,
 		Log:          logger,
-		ToDos:        NewToDoService(db, logger),
+		ToDos:        todos,
 		Interruption: make(chan os.Signal, 1),
 	}
 }
