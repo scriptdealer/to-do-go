@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    depends_on:
+      - db
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/usr/src/todo_demo
+    networks:
+      - fullstack
+    # command: ./main
+  db:
+    image: postgres:alpine
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASS}
+      - POSTGRES_DB=${DB_NAME}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-db:/var/lib/postgresql/data
+    networks:
+      - fullstack
+
+volumes:
+  postgres-db:
+
+networks:
+  fullstack:
+    driver: bridge
