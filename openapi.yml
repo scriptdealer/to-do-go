@@ -1,0 +1,165 @@
+openapi: 3.1.0
+info:
+  title: Backend for managing ToDo tasks
+  description: Minimal go server, containerized
+  version: 0.1.0
+servers:
+  - description: local
+    url: http://localhost:8080
+components:
+  parameters:
+    Bearer:
+      in: header
+      name: Authorization
+      required: true
+      schema:
+        type: string
+      example: Bearer <jwt>
+      description: access token пользователя
+    UserID:
+      in: path
+      name: id   # Note the name is the same as in the path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+        description: The user ID
+  schemas:
+    Erratic:
+      title: Erratic response
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: 'false if something goed wrong'
+          example: false
+        error:
+          type: string
+          description: Error string
+          example: "some error happened"
+      required:
+        - result
+        - error
+    Success:
+      title: Successful response
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: 'true if all goes the happy path'
+          example: true
+        data:
+          oneOf:
+            - $ref: '#/components/schemas/TodoItem'
+            - type: array
+              items:
+                $ref: '#/components/schemas/TodoItem'
+              minItems: 0
+      required:
+        - success
+    TodoItem:
+      title: toDo item
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        title:
+          type: string
+          example: "1st"
+        description:
+          type: string
+          example: "My first!"
+        done:
+          type: boolean
+          example: false
+  responses:
+      '200':
+        description: Запрос обработан
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/Erratic'
+                - $ref: '#/components/schemas/Success'
+            examples:
+              ok_getOne:
+                value:
+                  success: true
+                  data: {"id": 1, "title": "1st", "description": "My first!", "done": false}
+              ok_getAll:
+                value:
+                  success: true
+                  data: [{"id": 1, "title": "1st", "description": "My first!", "done": false}, {"id": 2, "title": "2nd", "description": "My second!", "done": false}]
+              bad_request:
+                value:
+                  success: false
+                  error: "bad request: details"
+                description: Различные ошибки запросов, подробности в логах
+
+paths:
+  /todo:
+    post:
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schemas:
+              type: object
+
+      summary: Creates an item
+      description: n/a
+      responses:
+        '200':
+          $ref: '#/components/responses/200'
+    get:
+      summary: Get all items, non-paginated way
+      parameters:
+        - $ref: '#/components/parameters/Bearer'
+      responses:
+        '200':
+          $ref: '#/components/responses/200'
+  /todo/{id}:
+    get:
+      summary: Get one item by ID
+      parameters:
+        - $ref: '#/components/parameters/UserID'
+      responses:
+        '200':
+          $ref: '#/components/responses/200'
+    patch:
+      deprecated: false
+      summary: Update one item
+      parameters:
+        - $ref: '#/components/parameters/UserID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schemas:
+              $ref: '#/components/schemas/TodoItem'
+      responses:
+        '200':
+          $ref: '#/components/responses/200'
+    delete:
+      deprecated: false
+      parameters:
+        - $ref: '#/components/parameters/Bearer'
+        - $ref: '#/components/parameters/UserID'
+      responses:
+        '200':
+          $ref: '#/components/responses/200'
+  /todo/status/{selector}:
+    get:
+      summary: returns items filtered by status
+      parameters:
+        - in: path
+          name: selector
+          description: active OR done
+          required: true
+          schema:
+            type: string
+          example: 'active'
+      responses:
+        '200':
+          $ref: '#/components/responses/200'
