@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-REPO_NAME=auth
+REPO_NAME=todos
 COVERAGE_MIN=95
 
 RED='\033[0;31m'
@@ -19,16 +19,8 @@ unit() {
    fi
 }
 
-unit_docker(){
-  go mod vendor
-  docker run --rm -v "$(pwd)":/work -w /work -it golang:1.21 \
-    bash -c "git config --global --add safe.directory /work && ./run.sh unit"
-  rm -Rf vendor
-}
-
 lint(){
   echo "run linter"
-  go mod vendor
   if ! docker run --rm -v "$(pwd)":/work:ro -w /work -it golangci/golangci-lint:latest golangci-lint run -v
   then
     echo -e "${RED}[LINTER CHECK FAILED]${NC}"
@@ -37,7 +29,6 @@ lint(){
   else
     echo -e "${GREEN}[LINTER CHECK PASSED]${NC}"
   fi
-  rm -Rf vendor
 }
 
 deps_check() {
@@ -62,203 +53,9 @@ stop_local() {
   docker compose down
 }
 
-start_integration() {
-  echo "starting integration tests services"
-
-  go mod vendor
-  cd tests/integration/docker
-  mkdir -p coverage
-  chmod 777 coverage
-  docker compose pull
-  docker compose build
-  docker compose up -d
-  cd ../../..
-}
-
-stop_integration() {
-  echo "stopping integration tests services"
-
-  cd tests/integration/docker
-  docker compose down
-  cd ../../..
-}
-
-start_integration_debug() {
-  echo "starting integration debug tests services"
-
-  touch ./tests/integration/integration.lock
-  cd tests/integration/docker
-  mkdir -p coverage
-  chmod 777 coverage
-  docker compose up -d
-  cd ../../..
-}
-
-stop_integration_debug() {
-  echo "stopping integration debug tests services"
-
-  cd tests/integration/docker
-  docker compose down
-  cd ../../..
-  rm ./tests/integration/integration.lock
-}
-
-restart_integration_debug() {
-  echo "restarting integration debug tests services"
-
-  start_integration
-  touch ./tests/integration/integration.lock
-  cd tests/integration/docker
-  mkdir -p coverage
-  chmod 777 coverage
-  docker compose up -d
-  cd ../../..
-}
-
-# Запуск интеграционных тестов
-integration(){
-  echo "run integration tests"
-  start_integration
-  touch ./tests/integration/integration.lock
-  set +e
-  go test ./tests/integration/... -v
-  local exit=$?
-  set -e
-  rm ./tests/integration/integration.lock
-  stop_integration
-
-  if [[ $exit != 0 ]]
-  then
-    echo -e "${RED}integration tests failed${NC}"
-    print_fail
-    return 1
-  else
-    echo -e "${GREEN}integration tests passed${NC}"
-  fi
-}
-
-integration_docker(){
-  echo "run integration tests"
-  docker build --file=Dockerfile.test -t $REPO_NAME-test:local .
-  start_integration
-  touch ./tests/integration/integration.lock
-  go mod vendor
-  set +e
-  docker run --rm -v "$(pwd)":/work -w /work \
-    -v /var/run/docker.sock:/var/run/docker.sock \
-    --network=host \
-    -it $REPO_NAME-test:local \
-    bash -c "go test ./tests/integration/... -v"
-  local exit=$?
-  set -e
-  rm ./tests/integration/integration.lock
-  rm -Rf vendor
-  stop_integration
-
-  if [[ $exit != 0 ]]
-  then
-    echo -e "${RED}integration tests failed${NC}"
-    print_fail
-    return 1
-  else
-    echo -e "${GREEN}integration tests passed${NC}"
-  fi
-}
-
-# Запуск тестов dev сервера
-test_dev(){
-  echo "run dev server tests"
-  touch ./tests/server/dev.lock
-  set +e
-  go test ./tests/server/... -v
-  local exit=$?
-  set -e
-  rm ./tests/server/dev.lock
-
-  if [[ $exit != 0 ]]
-  then
-    echo -e "${RED}dev server tests failed${NC}"
-    print_fail
-    return 1
-  else
-    echo -e "${GREEN}dev server tests passed${NC}"
-    print_success
-  fi
-}
-
-# Запуск тестов dev сервера
-test_stage(){
-  echo "run stage server tests"
-  touch ./tests/server/stage.lock
-  set +e
-  go test ./tests/server/... -v
-  local exit=$?
-  set -e
-  rm ./tests/server/stage.lock
-
-  if [[ $exit != 0 ]]
-  then
-    echo -e "${RED}stage server tests failed${NC}"
-    print_fail
-    return 1
-  else
-    echo -e "${GREEN}stage server tests passed${NC}"
-    print_success
-  fi
-}
-
-# Запуск тестов prod сервера
-test_prod(){
-  echo "run prod server tests"
-  touch ./tests/server/prod.lock
-  set +e
-  go test ./tests/server/... -v
-  local exit=$?
-  set -e
-  rm ./tests/server/prod.lock
-
-  if [[ $exit != 0 ]]
-  then
-    echo -e "${RED}prod server tests failed${NC}"
-    print_fail
-    return 1
-  else
-    echo -e "${GREEN}prod server tests failed${NC}"
-    print_success
-  fi
-}
-
 # Подтянуть зависимости
 deps(){
   go mod download
-}
-
-# Собрать исполняемый файл
-build(){
-  deps
-  CGO_ENABLED=0 GOOS=linux go build -installsuffix cgo -o app ./app
-}
-
-# Запустить сбор метрик нагрузки на cpu из pprof
-pprof_cpu(){
-  local SECS=${3:-$PPROF_DEFAULT_CPU_DURATION}
-  local HOST=$2
-
-  go tool pprof -http :$PPROF_UI_PORT $HOST/debug/pprof/profile?seconds=$SECS
-}
-
-# Запустить сбор метрик памяти из pprof
-pprof_heap(){
-  local HOST=$2
-
-  go tool pprof -http :$PPROF_UI_PORT $HOST/debug/pprof/heap
-}
-
-# Собрать docker образ
-build_docker() {
-  build
-  docker build -t "$REPO_NAME:local" .
-  rm ./app/app
 }
 
 # Запустить проверку локального образа на уязвимости
@@ -268,12 +65,6 @@ security_scan() {
   docker save "$REPO_NAME:local" > image.tar
   docker run --rm -it -v "$(pwd):/work" aquasec/trivy image --input /work/image.tar --timeout 10m0s
   rm image.tar
-}
-
-# Запуск генерации конфигов деплоя
-gen_config(){
-  cd tools/gen_config
-  go run .
 }
 
 unit_cover() {
@@ -370,34 +161,6 @@ print_success() {
   echo -e "${GREEN} ███████  ██    ██  ██       ██       █████    ███████  ███████ ${NC}"
   echo -e "${GREEN}      ██  ██    ██  ██       ██       ██            ██       ██ ${NC}"
   echo -e "${GREEN} ███████   ██████    ██████   ██████  ███████  ███████  ███████ ${NC}"
-}
-
-githooks() {
-  rm -f .git/hooks/pre-commit
-  cp .githooks/pre-commit .git/hooks
-}
-
-# Запуск всех тестов
-test(){
-  fmt
-  vet
-  unit
-  deps_check
-  lint
-  security_scan
-  integration
-  count_coverage
-  print_success
-}
-
-test_docker() {
-  fmt
-  vet
-  unit_docker
-  deps_check
-  lint
-  security_scan
-  integration_docker
 }
 
 # Добавьте сюда список команд

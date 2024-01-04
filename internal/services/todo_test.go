@@ -55,3 +55,24 @@ func (s *TodoServiceSuite) TestGetOne_Ok() {
 		Done:        false,
 	}, got)
 }
+
+func (s *TodoServiceSuite) TestGetOne_NoRow() {
+	emptyRows := sqlmock.NewRows([]string{"id", "title", "description", "done"})
+	s.mockedDB.ExpectQuery(regexp.QuoteMeta(
+		`select * from todos where id = $1`,
+	)).WithArgs(2).WillReturnRows(emptyRows)
+
+	got, err := s.todo.Get(2)
+	s.EqualError(err, "no such item in storage")
+	s.Nil(got)
+}
+
+func (s *TodoServiceSuite) TestGetOne_DbFailure() {
+	s.mockedDB.ExpectQuery(regexp.QuoteMeta(
+		`select * from todos where id = $1`,
+	)).WithArgs(2).WillReturnError(sql.ErrConnDone)
+
+	got, err := s.todo.Get(2)
+	s.EqualError(err, "sql: connection is already closed")
+	s.Nil(got)
+}

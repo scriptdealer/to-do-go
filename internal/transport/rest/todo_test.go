@@ -58,7 +58,20 @@ func (s *RouterSuite) TestAddItem_Ok() {
 	expected := []byte(`{"success":true,"data":{"id":2,"title":"2nd","description":"second one","done":false}}`)
 	expected = append(expected, 0xa)
 	s.Equal(expected, w.Body.Bytes())
+}
 
+func (s *RouterSuite) TestAddItem_BadRequest() {
+	w := httptest.NewRecorder()
+	req := itemPatchRequest{Title: "test", Done: true}
+	body, err := json.Marshal(req)
+	s.Nil(err)
+	r := httptest.NewRequest(http.MethodPost, "/todo", bytes.NewReader(body))
+
+	AddItem(w, r)
+	s.Equal(http.StatusOK, w.Code)
+	expected := []byte(`{"success":false,"error":"update data has empty values"}`)
+	expected = append(expected, 0xa)
+	s.Equal(expected, w.Body.Bytes())
 }
 
 func (s *RouterSuite) TestGetOne_Ok() {
@@ -72,5 +85,31 @@ func (s *RouterSuite) TestGetOne_Ok() {
 	expected := []byte(`{"success":true,"data":{"id":1,"title":"1st","description":"first test","done":false}}`)
 	expected = append(expected, 0xa)
 	s.Equal(expected, w.Body.Bytes())
+}
 
+func (s *RouterSuite) TestDeletion_Unauthorized() {
+	vars := map[string]string{"id": "1"}
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodDelete, "/todo/{id}", nil)
+	r = mux.SetURLVars(r, vars)
+
+	DeleteItem(w, r)
+	s.Equal(http.StatusOK, w.Code)
+	expected := []byte(`{"success":false,"error":"not authorized"}`)
+	expected = append(expected, 0xa)
+	s.Equal(expected, w.Body.Bytes())
+}
+
+func (s *RouterSuite) TestDeletion_Ok() {
+	vars := map[string]string{"id": "1"}
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodDelete, "/todo/{id}", nil)
+	r = mux.SetURLVars(r, vars)
+	r.Header.Add("Authorization", "Bearer kc74RbhOwtvVRcJhhJKpuDxSLwJY6oSC0iCfTJ2FsG0=")
+
+	DeleteItem(w, r)
+	s.Equal(http.StatusOK, w.Code)
+	expected := []byte(`{"success":true}`)
+	expected = append(expected, 0xa)
+	s.Equal(expected, w.Body.Bytes())
 }

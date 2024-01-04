@@ -83,6 +83,7 @@ func DeleteItem(w http.ResponseWriter, r *http.Request) {
 	}
 	vars := mux.Vars(r)
 	id, _ := strconv.Atoi(vars["id"])
+	serviceLayer.Log.Info("deleting item", slog.Int("id", id))
 	err := serviceLayer.ToDos.Delete(id)
 	respondWith(w, nil, err)
 }
