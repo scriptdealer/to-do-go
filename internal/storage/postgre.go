@@ -47,7 +47,7 @@ func getConfig() *PostgreConfiguration {
 }
 
 type PostgresStorage struct {
-	db  *sql.DB
+	DB  *sql.DB
 	cfg *PostgreConfiguration
 	Log *slog.Logger
 }
@@ -76,7 +76,7 @@ func NewPostgresStore(logger *slog.Logger) (*PostgresStorage, error) {
 	}
 
 	store := &PostgresStorage{
-		db:  db,
+		DB:  db,
 		cfg: config,
 		Log: logger,
 	}
@@ -101,14 +101,14 @@ func (s *PostgresStorage) createToDoTable() error {
 		done boolean
 	)`
 
-	_, err := s.db.Exec(query)
+	_, err := s.DB.Exec(query)
 	return err
 }
 
 func (s *PostgresStorage) Create(item *known.TodoItem) (*known.TodoItem, error) {
 	query := `insert into todos (title, description, done) values ($1, $2, $3)`
 
-	_, err := s.db.Exec(
+	_, err := s.DB.Exec(
 		query,
 		item.Title,
 		item.Description,
@@ -123,7 +123,7 @@ func (s *PostgresStorage) Create(item *known.TodoItem) (*known.TodoItem, error) 
 }
 
 func (s *PostgresStorage) Update(item *known.TodoItem) (*known.TodoItem, error) {
-	_, err := s.db.Exec(
+	_, err := s.DB.Exec(
 		"update todos set title = $1, description = $2, done = $3 where id = $4",
 		item.Title,
 		item.Description,
@@ -134,12 +134,12 @@ func (s *PostgresStorage) Update(item *known.TodoItem) (*known.TodoItem, error) 
 }
 
 func (s *PostgresStorage) Delete(id int) error {
-	_, err := s.db.Exec("delete from todos where id = $1", id)
+	_, err := s.DB.Exec("delete from todos where id = $1", id)
 	return err
 }
 
 func (s *PostgresStorage) GetOne(id int) (*known.TodoItem, error) {
-	rows, err := s.db.Query("select * from todos where id = $1", id)
+	rows, err := s.DB.Query("select * from todos where id = $1", id)
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +152,7 @@ func (s *PostgresStorage) GetOne(id int) (*known.TodoItem, error) {
 }
 
 func (s *PostgresStorage) GetAll(ctx context.Context) ([]*known.TodoItem, error) {
-	rows, err := s.db.QueryContext(ctx, "select * from todos")
+	rows, err := s.DB.QueryContext(ctx, "select * from todos")
 	if err != nil {
 		return nil, err
 	}
