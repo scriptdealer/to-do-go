@@ -20,7 +20,7 @@ type RouterSuite struct {
 
 	db     *storage.InMemoryStorage
 	logger *slog.Logger
-	router http.Handler
+	api    *RESTful
 }
 
 func TestRouter(t *testing.T) {
@@ -34,7 +34,7 @@ func (s *RouterSuite) SetupTest() {
 		s.db, s.logger,
 		services.NewToDoService(s.db, s.logger),
 	)
-	s.router = InitHandlers(services)
+	s.api = Init(services)
 
 	w := httptest.NewRecorder()
 	req := itemPatchRequest{Title: "1st", Description: "first test"}
@@ -42,7 +42,7 @@ func (s *RouterSuite) SetupTest() {
 	s.Nil(err)
 	r := httptest.NewRequest(http.MethodPost, "/todo", bytes.NewReader(body))
 
-	AddItem(w, r)
+	s.api.AddItem(w, r)
 	s.Equal(http.StatusOK, w.Code)
 }
 
@@ -53,9 +53,9 @@ func (s *RouterSuite) TestAddItem_Ok() {
 	s.Nil(err)
 	r := httptest.NewRequest(http.MethodPost, "/todo", bytes.NewReader(body))
 
-	AddItem(w, r)
+	s.api.AddItem(w, r)
 	s.Equal(http.StatusOK, w.Code)
-	expected := []byte(`{"success":true,"data":{"id":2,"title":"2nd","description":"second one","done":false}}`)
+	expected := []byte(`{"success":true}`)
 	expected = append(expected, 0xa)
 	s.Equal(expected, w.Body.Bytes())
 }
@@ -67,7 +67,7 @@ func (s *RouterSuite) TestAddItem_BadRequest() {
 	s.Nil(err)
 	r := httptest.NewRequest(http.MethodPost, "/todo", bytes.NewReader(body))
 
-	AddItem(w, r)
+	s.api.AddItem(w, r)
 	s.Equal(http.StatusOK, w.Code)
 	expected := []byte(`{"success":false,"error":"update data has empty values"}`)
 	expected = append(expected, 0xa)
@@ -80,7 +80,7 @@ func (s *RouterSuite) TestGetOne_Ok() {
 	r := httptest.NewRequest(http.MethodGet, "/todo/{id}", nil)
 	r = mux.SetURLVars(r, vars)
 
-	GetItem(w, r)
+	s.api.GetItem(w, r)
 	s.Equal(http.StatusOK, w.Code)
 	expected := []byte(`{"success":true,"data":{"id":1,"title":"1st","description":"first test","done":false}}`)
 	expected = append(expected, 0xa)
@@ -93,7 +93,7 @@ func (s *RouterSuite) TestDeletion_Unauthorized() {
 	r := httptest.NewRequest(http.MethodDelete, "/todo/{id}", nil)
 	r = mux.SetURLVars(r, vars)
 
-	DeleteItem(w, r)
+	s.api.DeleteItem(w, r)
 	s.Equal(http.StatusOK, w.Code)
 	expected := []byte(`{"success":false,"error":"not authorized"}`)
 	expected = append(expected, 0xa)
@@ -107,7 +107,7 @@ func (s *RouterSuite) TestDeletion_Ok() {
 	r = mux.SetURLVars(r, vars)
 	r.Header.Add("Authorization", "Bearer kc74RbhOwtvVRcJhhJKpuDxSLwJY6oSC0iCfTJ2FsG0=")
 
-	DeleteItem(w, r)
+	s.api.DeleteItem(w, r)
 	s.Equal(http.StatusOK, w.Code)
 	expected := []byte(`{"success":true}`)
 	expected = append(expected, 0xa)

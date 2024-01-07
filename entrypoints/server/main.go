@@ -53,10 +53,10 @@ func main() {
 		db, logger,
 		services.NewToDoService(db, logger),
 	)
-	gorillaMux := rest.InitHandlers(services)
+	api := rest.Init(services)
 	server := &http.Server{
 		Addr:           fmt.Sprintf("%s:%s", config.ServerIP, config.ServerPort),
-		Handler:        gorillaMux,
+		Handler:        api.Router,
 		ReadTimeout:    14 * time.Second,
 		WriteTimeout:   14 * time.Second,
 		MaxHeaderBytes: 1 << 20,

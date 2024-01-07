@@ -14,8 +14,8 @@ var errNoItem = errors.New("no such item in storage")
 type ToDoStore interface {
 	GetOne(id int) (*known.TodoItem, error)
 	GetAll(ctx context.Context) ([]*known.TodoItem, error)
-	Create(item *known.TodoItem) (*known.TodoItem, error)
-	Update(item *known.TodoItem) (*known.TodoItem, error)
+	Create(item *known.TodoItem) error
+	Update(item *known.TodoItem) error
 	Delete(id int) error
 }
 
@@ -60,7 +60,7 @@ func (tds *InMemoryStorage) GetAll(ctx context.Context) ([]*known.TodoItem, erro
 	return result, nil
 }
 
-func (tds *InMemoryStorage) Create(item *known.TodoItem) (*known.TodoItem, error) {
+func (tds *InMemoryStorage) Create(item *known.TodoItem) error {
 	tds.ramLock.Lock()
 	defer tds.ramLock.Unlock()
 
@@ -68,19 +68,19 @@ func (tds *InMemoryStorage) Create(item *known.TodoItem) (*known.TodoItem, error
 	item.ID = tds.currentIndex
 	tds.ram[tds.currentIndex] = *item
 
-	return item, nil
+	return nil
 }
 
-func (tds *InMemoryStorage) Update(item *known.TodoItem) (*known.TodoItem, error) {
+func (tds *InMemoryStorage) Update(item *known.TodoItem) error {
 	tds.ramLock.Lock()
 	defer tds.ramLock.Unlock()
 	_, found := tds.ram[item.ID]
 	if found {
 		tds.ram[item.ID] = *item
-		return item, nil
+		return nil
 	}
 
-	return nil, errNoItem
+	return errNoItem
 }
 
 func (tds *InMemoryStorage) Delete(id int) error {

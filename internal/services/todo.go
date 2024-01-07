@@ -11,10 +11,10 @@ import (
 )
 
 type TodoLogic interface {
-	Create(title, description string) (*known.TodoItem, error)
+	Create(title, description string) error
 	Get(id int) (*known.TodoItem, error)
 	GetAll(ctx context.Context) ([]*known.TodoItem, error)
-	Update(id int, title, description string, done bool) (*known.TodoItem, error)
+	Update(id int, title, description string, done bool) error
 	Delete(id int) error
 }
 
@@ -27,7 +27,7 @@ func NewToDoService(db storage.ToDoStore, logger *slog.Logger) *TodoService {
 	return &TodoService{store: db, Log: logger}
 }
 
-func (tds *TodoService) Create(title, description string) (*known.TodoItem, error) {
+func (tds *TodoService) Create(title, description string) error {
 	item := known.TodoItem{
 		Title:       title,
 		Description: description,
@@ -35,7 +35,7 @@ func (tds *TodoService) Create(title, description string) (*known.TodoItem, erro
 	return tds.store.Create(&item)
 }
 
-func (tds *TodoService) Update(id int, title, description string, done bool) (*known.TodoItem, error) {
+func (tds *TodoService) Update(id int, title, description string, done bool) error {
 	patch := known.TodoItem{
 		ID:          id,
 		Title:       title,

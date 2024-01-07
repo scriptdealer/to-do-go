@@ -13,22 +13,22 @@ import (
 	"github.com/scriptdealer/to-do-go/known"
 )
 
-func AllItems(w http.ResponseWriter, r *http.Request) {
-	defer LogRecover()
-	todos, err := serviceLayer.ToDos.GetAll(r.Context())
-	serviceLayer.Log.Info("serving AllItems", slog.Int("count", len(todos)))
-	respondWith(w, todos, err)
+func (rest *RESTful) AllItems(w http.ResponseWriter, r *http.Request) {
+	defer rest.LogRecover()
+	todos, err := rest.serviceLayer.ToDos.GetAll(r.Context())
+	rest.serviceLayer.Log.Info("serving AllItems", slog.Int("count", len(todos)))
+	rest.respondWith(w, todos, err)
 }
 
-func GetItem(w http.ResponseWriter, r *http.Request) {
+func (rest *RESTful) GetItem(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, _ := strconv.Atoi(vars["id"])
-	todo, err := serviceLayer.ToDos.Get(id)
-	respondWith(w, todo, err)
+	todo, err := rest.serviceLayer.ToDos.Get(id)
+	rest.respondWith(w, todo, err)
 }
 
-func FilterByStatus(w http.ResponseWriter, r *http.Request) {
-	todos, err := serviceLayer.ToDos.GetAll(r.Context())
+func (rest *RESTful) FilterByStatus(w http.ResponseWriter, r *http.Request) {
+	todos, err := rest.serviceLayer.ToDos.GetAll(r.Context())
 	vars := mux.Vars(r)
 	status := vars["selector"]
 
@@ -42,53 +42,47 @@ func FilterByStatus(w http.ResponseWriter, r *http.Request) {
 			result = append(result, *todos[i])
 		}
 	}
-	serviceLayer.Log.Info("serving filtered items", slog.Int("count", len(result)))
-	respondWith(w, result, err)
+	rest.serviceLayer.Log.Info("serving filtered items", slog.Int("count", len(result)))
+	rest.respondWith(w, result, err)
 }
 
-func AddItem(w http.ResponseWriter, r *http.Request) {
-	var (
-		data itemPatchRequest
-		todo *known.TodoItem
-	)
+func (rest *RESTful) AddItem(w http.ResponseWriter, r *http.Request) {
+	var data itemPatchRequest
 	reqBody, _ := io.ReadAll(r.Body)
 	_ = json.Unmarshal(reqBody, &data)
-	serviceLayer.Log.Info("adding item", slog.String("body", fmt.Sprintf("%+v", data)))
+	rest.serviceLayer.Log.Info("adding item", slog.String("body", fmt.Sprintf("%+v", data)))
 
 	err := data.Validate()
 	if err == nil {
-		todo, err = serviceLayer.ToDos.Create(data.Title, data.Description)
+		err = rest.serviceLayer.ToDos.Create(data.Title, data.Description)
 	}
-	respondWith(w, todo, err)
+	rest.respondWith(w, nil, err)
 }
 
-func UpdateItem(w http.ResponseWriter, r *http.Request) {
-	var (
-		data itemPatchRequest
-		todo *known.TodoItem
-	)
+func (rest *RESTful) UpdateItem(w http.ResponseWriter, r *http.Request) {
+	var data itemPatchRequest
 	vars := mux.Vars(r)
 	id, _ := strconv.Atoi(vars["id"])
 	err := json.NewDecoder(r.Body).Decode(&data)
 	if err == nil {
-		todo, err = serviceLayer.ToDos.Update(id, data.Title, data.Description, data.Done)
+		err = rest.serviceLayer.ToDos.Update(id, data.Title, data.Description, data.Done)
 	}
-	respondWith(w, todo, err)
+	rest.respondWith(w, nil, err)
 }
 
-func DeleteItem(w http.ResponseWriter, r *http.Request) {
-	if ok := authCheck(r); !ok {
-		respondWith(w, nil, fmt.Errorf("not authorized"))
+func (rest *RESTful) DeleteItem(w http.ResponseWriter, r *http.Request) {
+	if ok := rest.authCheck(r); !ok {
+		rest.respondWith(w, nil, fmt.Errorf("not authorized"))
 		return
 	}
 	vars := mux.Vars(r)
 	id, _ := strconv.Atoi(vars["id"])
-	serviceLayer.Log.Info("deleting item", slog.Int("id", id))
-	err := serviceLayer.ToDos.Delete(id)
-	respondWith(w, nil, err)
+	rest.serviceLayer.Log.Info("deleting item", slog.Int("id", id))
+	err := rest.serviceLayer.ToDos.Delete(id)
+	rest.respondWith(w, nil, err)
 }
 
-func authCheck(r *http.Request) bool {
+func (rest *RESTful) authCheck(r *http.Request) bool {
 	authHeader := r.Header.Get("Authorization")
 	authPrefix := "Bearer "
 
@@ -98,10 +92,10 @@ func authCheck(r *http.Request) bool {
 
 	authKey := authHeader[len(authPrefix):]
 
-	return authKey == staticAPIKey
+	return authKey == rest.staticAPIKey
 }
 
-func respondWith(w io.Writer, data any, err error) {
+func (rest *RESTful) respondWith(w io.Writer, data any, err error) {
 	reply := apiResponse{}
 	if err == nil {
 		reply.Success = true
@@ -111,6 +105,6 @@ func respondWith(w io.Writer, data any, err error) {
 	}
 	err = json.NewEncoder(w).Encode(reply)
 	if err != nil {
-		serviceLayer.Log.Warn("failed to respond", slog.String("reason", err.Error()))
+		rest.serviceLayer.Log.Warn("failed to respond", slog.String("reason", err.Error()))
 	}
 }

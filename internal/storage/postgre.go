@@ -105,7 +105,7 @@ func (s *PostgresStorage) createToDoTable() error {
 	return err
 }
 
-func (s *PostgresStorage) Create(item *known.TodoItem) (*known.TodoItem, error) {
+func (s *PostgresStorage) Create(item *known.TodoItem) error {
 	query := `insert into todos (title, description, done) values ($1, $2, $3)`
 
 	_, err := s.DB.Exec(
@@ -116,13 +116,13 @@ func (s *PostgresStorage) Create(item *known.TodoItem) (*known.TodoItem, error) 
 	)
 
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return item, nil
+	return nil
 }
 
-func (s *PostgresStorage) Update(item *known.TodoItem) (*known.TodoItem, error) {
+func (s *PostgresStorage) Update(item *known.TodoItem) error {
 	_, err := s.DB.Exec(
 		"update todos set title = $1, description = $2, done = $3 where id = $4",
 		item.Title,
@@ -130,7 +130,7 @@ func (s *PostgresStorage) Update(item *known.TodoItem) (*known.TodoItem, error) 
 		item.Done,
 		item.ID,
 	)
-	return nil, err
+	return err
 }
 
 func (s *PostgresStorage) Delete(id int) error {

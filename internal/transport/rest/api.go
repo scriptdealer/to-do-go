@@ -9,26 +9,33 @@ import (
 	"github.com/scriptdealer/to-do-go/internal/services"
 )
 
-var (
+type RESTful struct {
 	serviceLayer *services.Composition
 	staticAPIKey string
-)
-
-func InitHandlers(layer *services.Composition) http.Handler {
-	serviceLayer = layer
-	staticAPIKey = "kc74RbhOwtvVRcJhhJKpuDxSLwJY6oSC0iCfTJ2FsG0="
-	r := mux.NewRouter().StrictSlash(true)
-	r.HandleFunc("/todo", AllItems).Methods(http.MethodGet)
-	r.HandleFunc("/todo", AddItem).Methods(http.MethodPost)
-	r.HandleFunc("/todo/{id}", GetItem).Methods(http.MethodGet)
-	r.HandleFunc("/todo/{id}", UpdateItem).Methods(http.MethodPatch)
-	r.HandleFunc("/todo/{id}", DeleteItem).Methods(http.MethodDelete)
-	r.HandleFunc("/todo/status/{selector}", FilterByStatus).Methods(http.MethodGet)
-	return r
+	Router       http.Handler
 }
 
-func LogRecover() {
+func Init(layer *services.Composition) *RESTful {
+	api := RESTful{
+		serviceLayer: layer,
+		staticAPIKey: "kc74RbhOwtvVRcJhhJKpuDxSLwJY6oSC0iCfTJ2FsG0=",
+	}
+
+	r := mux.NewRouter().StrictSlash(true)
+	r.HandleFunc("/todo", api.AllItems).Methods(http.MethodGet)
+	r.HandleFunc("/todo", api.AddItem).Methods(http.MethodPost)
+	r.HandleFunc("/todo/{id}", api.GetItem).Methods(http.MethodGet)
+	r.HandleFunc("/todo/{id}", api.UpdateItem).Methods(http.MethodPatch)
+	r.HandleFunc("/todo/{id}", api.DeleteItem).Methods(http.MethodDelete)
+	r.HandleFunc("/todo/status/{selector}", api.FilterByStatus).Methods(http.MethodGet)
+
+	api.Router = r
+
+	return &api
+}
+
+func (r *RESTful) LogRecover() {
 	if err := recover(); err != nil {
-		serviceLayer.Log.Error("Fail:", slog.String("stack", string(debug.Stack())))
+		r.serviceLayer.Log.Error("Fail:", slog.String("stack", string(debug.Stack())))
 	}
 }
