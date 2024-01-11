@@ -1,0 +1,666 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>services: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/scriptdealer/to-do-go/internal/services/composite.go (100.0%)</option>
+				
+				<option value="file1">github.com/scriptdealer/to-do-go/internal/services/todo.go (100.0%)</option>
+				
+				<option value="file2">github.com/scriptdealer/to-do-go/internal/storage/memory.go (100.0%)</option>
+				
+				<option value="file3">github.com/scriptdealer/to-do-go/internal/storage/postgre.go (68.4%)</option>
+				
+				<option value="file4">github.com/scriptdealer/to-do-go/internal/transport/rest/api.go (91.7%)</option>
+				
+				<option value="file5">github.com/scriptdealer/to-do-go/internal/transport/rest/dto.go (100.0%)</option>
+				
+				<option value="file6">github.com/scriptdealer/to-do-go/internal/transport/rest/todo.go (98.2%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package services
+
+import (
+        "log/slog"
+        "os"
+
+        "github.com/scriptdealer/to-do-go/internal/storage"
+)
+
+type Composition struct {
+        // Config     *Configuration
+        DB           storage.ToDoStore
+        Interruption chan os.Signal
+        Log          *slog.Logger
+        ToDos        TodoLogic
+        // Users        *userService
+}
+
+func NewComposite(db storage.ToDoStore, logger *slog.Logger, todos TodoLogic) *Composition <span class="cov8" title="1">{
+        return &amp;Composition{
+                DB:           db,
+                Log:          logger,
+                ToDos:        todos,
+                Interruption: make(chan os.Signal, 1),
+        }
+}</span>
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package services
+
+//go:generate mockgen -destination=todo_mock_test.go -source=todo.go -package=services_test
+
+import (
+        "context"
+        "log/slog"
+
+        "github.com/scriptdealer/to-do-go/internal/storage"
+        "github.com/scriptdealer/to-do-go/known"
+)
+
+type TodoLogic interface {
+        Create(title, description string, done bool) error
+        Get(id int) (*known.TodoItem, error)
+        GetAll(ctx context.Context) ([]*known.TodoItem, error)
+        Update(id int, title, description string, done bool) error
+        Delete(id int) error
+}
+
+type TodoService struct {
+        store storage.ToDoStore
+        Log   *slog.Logger
+}
+
+func NewToDoService(db storage.ToDoStore, logger *slog.Logger) *TodoService <span class="cov8" title="1">{
+        return &amp;TodoService{store: db, Log: logger}
+}</span>
+
+func (tds *TodoService) Create(title, description string, done bool) error <span class="cov8" title="1">{
+        item := known.TodoItem{
+                Title:       title,
+                Description: description,
+                Done:        done,
+        }
+        return tds.store.Create(&amp;item)
+}</span>
+
+func (tds *TodoService) Update(id int, title, description string, done bool) error <span class="cov8" title="1">{
+        patch := known.TodoItem{
+                ID:          id,
+                Title:       title,
+                Description: description,
+                Done:        done,
+        }
+        return tds.store.Update(&amp;patch)
+}</span>
+
+func (tds *TodoService) Delete(id int) error <span class="cov8" title="1">{
+        return tds.store.Delete(id)
+}</span>
+
+func (tds *TodoService) Get(id int) (*known.TodoItem, error) <span class="cov8" title="1">{
+        return tds.store.GetOne(id)
+}</span>
+
+func (tds *TodoService) GetAll(ctx context.Context) ([]*known.TodoItem, error) <span class="cov8" title="1">{
+        return tds.store.GetAll(ctx)
+}</span>
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package storage
+
+import (
+        "context"
+        "errors"
+        "log/slog"
+        "sync"
+
+        "github.com/scriptdealer/to-do-go/known"
+)
+
+var errNoItem = errors.New("no such item in storage")
+
+type ToDoStore interface {
+        GetOne(id int) (*known.TodoItem, error)
+        GetAll(ctx context.Context) ([]*known.TodoItem, error)
+        Create(item *known.TodoItem) error
+        Update(item *known.TodoItem) error
+        Delete(id int) error
+}
+
+type InMemoryStorage struct {
+        ram          map[int]known.TodoItem
+        ramLock      sync.Mutex
+        currentIndex int
+        logger       *slog.Logger
+}
+
+func NewMemoryStorage(logger *slog.Logger) *InMemoryStorage <span class="cov8" title="1">{
+        logger.Info("In-memory storage selected")
+
+        return &amp;InMemoryStorage{
+                ram:    make(map[int]known.TodoItem),
+                logger: logger,
+        }
+}</span>
+
+func (tds *InMemoryStorage) GetOne(id int) (*known.TodoItem, error) <span class="cov8" title="1">{
+        tds.ramLock.Lock()
+        defer tds.ramLock.Unlock()
+
+        result, found := tds.ram[id]
+        if found </span><span class="cov8" title="1">{
+                return &amp;result, nil
+        }</span>
+
+        <span class="cov8" title="1">return nil, errNoItem</span>
+}
+
+func (tds *InMemoryStorage) GetAll(ctx context.Context) ([]*known.TodoItem, error) <span class="cov8" title="1">{
+        tds.ramLock.Lock()
+        defer tds.ramLock.Unlock()
+
+        result := make([]*known.TodoItem, 0)
+        for k := range tds.ram </span><span class="cov8" title="1">{
+                v := tds.ram[k]
+                result = append(result, &amp;v)
+        }</span>
+
+        <span class="cov8" title="1">return result, nil</span>
+}
+
+func (tds *InMemoryStorage) Create(item *known.TodoItem) error <span class="cov8" title="1">{
+        tds.ramLock.Lock()
+        defer tds.ramLock.Unlock()
+
+        tds.currentIndex++
+        item.ID = tds.currentIndex
+        tds.ram[tds.currentIndex] = *item
+
+        return nil
+}</span>
+
+func (tds *InMemoryStorage) Update(item *known.TodoItem) error <span class="cov8" title="1">{
+        tds.ramLock.Lock()
+        defer tds.ramLock.Unlock()
+        _, found := tds.ram[item.ID]
+        if found </span><span class="cov8" title="1">{
+                tds.ram[item.ID] = *item
+                return nil
+        }</span>
+
+        <span class="cov8" title="1">return errNoItem</span>
+}
+
+func (tds *InMemoryStorage) Delete(id int) error <span class="cov8" title="1">{
+        tds.ramLock.Lock()
+        defer tds.ramLock.Unlock()
+        _, found := tds.ram[id]
+        if found </span><span class="cov8" title="1">{
+                delete(tds.ram, id)
+                return nil
+        }</span>
+
+        <span class="cov8" title="1">return errNoItem</span>
+}
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">package storage
+
+import (
+        "context"
+        "database/sql"
+        "fmt"
+        "log/slog"
+        "os"
+
+        _ "github.com/lib/pq" // driver import
+        "github.com/scriptdealer/to-do-go/known"
+)
+
+type PostgreConfiguration struct {
+        UserName string
+        Password string
+        Host     string
+        Port     string
+        DBName   string
+}
+
+func getConfig() *PostgreConfiguration <span class="cov8" title="1">{
+        cfg := PostgreConfiguration{
+                Host:     "db",
+                Port:     "5432",
+                DBName:   "todo_demo",
+                UserName: "pguser",
+                Password: "pgpassword",
+        }
+
+        host, found := os.LookupEnv("DB_HOST")
+        if found </span><span class="cov8" title="1">{
+                cfg.Host = host
+        }</span>
+
+        <span class="cov8" title="1">user, found := os.LookupEnv("DB_USER")
+        if found </span><span class="cov8" title="1">{
+                cfg.UserName = user
+        }</span>
+
+        <span class="cov8" title="1">pass, found := os.LookupEnv("DB_PASS")
+        if found </span><span class="cov8" title="1">{
+                cfg.Password = pass
+        }</span>
+
+        <span class="cov8" title="1">return &amp;cfg</span>
+}
+
+type PostgresStorage struct {
+        DB  *sql.DB
+        cfg *PostgreConfiguration
+        Log *slog.Logger
+}
+
+func NewPostgresStore(logger *slog.Logger) (*PostgresStorage, error) <span class="cov0" title="0">{
+        logger.Info("Postgre storage selected")
+
+        config := getConfig()
+        connStr := fmt.Sprintf(
+                "host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+                config.Host,
+                config.Port,
+                config.UserName,
+                config.Password,
+                config.DBName,
+        )
+
+        db, err := sql.Open("postgres", connStr)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        <span class="cov0" title="0">if err := db.Ping(); err != nil </span><span class="cov0" title="0">{
+                logger.Info("DB open failed", slog.String("reason", err.Error()))
+                return nil, err
+        }</span>
+
+        <span class="cov0" title="0">store := &amp;PostgresStorage{
+                DB:  db,
+                cfg: config,
+                Log: logger,
+        }
+
+        if err := store.Init(); err != nil </span><span class="cov0" title="0">{
+                logger.Info("DB init failed", slog.String("reason", err.Error()))
+                return nil, err
+        }</span>
+
+        <span class="cov0" title="0">return store, nil</span>
+}
+
+func (s *PostgresStorage) Init() error <span class="cov0" title="0">{
+        return s.createToDoTable()
+}</span>
+
+func (s *PostgresStorage) createToDoTable() error <span class="cov0" title="0">{
+        query := `create table if not exists todos (
+                id serial primary key,
+                title varchar(100),
+                description varchar(100),
+                done boolean
+        )`
+
+        _, err := s.DB.Exec(query)
+        return err
+}</span>
+
+func (s *PostgresStorage) Create(item *known.TodoItem) error <span class="cov8" title="1">{
+        query := `insert into todos (title, description, done) values ($1, $2, $3)`
+
+        _, err := s.DB.Exec(
+                query,
+                item.Title,
+                item.Description,
+                item.Done,
+        )
+
+        if err != nil </span><span class="cov8" title="1">{
+                return err
+        }</span>
+
+        <span class="cov8" title="1">return nil</span>
+}
+
+func (s *PostgresStorage) Update(item *known.TodoItem) error <span class="cov8" title="1">{
+        _, err := s.DB.Exec(
+                "update todos set title = $1, description = $2, done = $3 where id = $4",
+                item.Title,
+                item.Description,
+                item.Done,
+                item.ID,
+        )
+        return err
+}</span>
+
+func (s *PostgresStorage) Delete(id int) error <span class="cov8" title="1">{
+        _, err := s.DB.Exec("delete from todos where id = $1", id)
+        return err
+}</span>
+
+func (s *PostgresStorage) GetOne(id int) (*known.TodoItem, error) <span class="cov8" title="1">{
+        rows, err := s.DB.Query("select * from todos where id = $1", id)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">for rows.Next() </span><span class="cov8" title="1">{
+                return scanItem(rows)
+        }</span>
+
+        <span class="cov8" title="1">return nil, errNoItem</span>
+}
+
+func (s *PostgresStorage) GetAll(ctx context.Context) ([]*known.TodoItem, error) <span class="cov8" title="1">{
+        rows, err := s.DB.QueryContext(ctx, "select * from todos")
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">items := []*known.TodoItem{}
+        for rows.Next() </span><span class="cov8" title="1">{
+                item, err := scanItem(rows)
+                if err != nil </span><span class="cov8" title="1">{
+                        return nil, err
+                }</span>
+
+                <span class="cov8" title="1">items = append(items, item)</span>
+        }
+
+        <span class="cov8" title="1">return items, nil</span>
+}
+
+func scanItem(rows *sql.Rows) (*known.TodoItem, error) <span class="cov8" title="1">{
+        item := new(known.TodoItem)
+        err := rows.Scan(
+                &amp;item.ID,
+                &amp;item.Title,
+                &amp;item.Description,
+                &amp;item.Done)
+
+        return item, err
+}</span>
+</pre>
+		
+		<pre class="file" id="file4" style="display: none">package rest
+
+import (
+        "log/slog"
+        "net/http"
+        "runtime/debug"
+
+        "github.com/gorilla/mux"
+        "github.com/scriptdealer/to-do-go/internal/services"
+)
+
+type RESTful struct {
+        serviceLayer *services.Composition
+        staticAPIKey string
+        Router       http.Handler
+}
+
+func Init(layer *services.Composition) *RESTful <span class="cov8" title="1">{
+        api := RESTful{
+                serviceLayer: layer,
+                staticAPIKey: "kc74RbhOwtvVRcJhhJKpuDxSLwJY6oSC0iCfTJ2FsG0=",
+        }
+
+        r := mux.NewRouter().StrictSlash(true)
+        r.HandleFunc("/todo", api.AllItems).Methods(http.MethodGet)
+        r.HandleFunc("/todo", api.AddItem).Methods(http.MethodPost)
+        r.HandleFunc("/todo/{id}", api.GetItem).Methods(http.MethodGet)
+        r.HandleFunc("/todo/{id}", api.UpdateItem).Methods(http.MethodPatch)
+        r.HandleFunc("/todo/{id}", api.DeleteItem).Methods(http.MethodDelete)
+        r.HandleFunc("/todo/status/{selector}", api.FilterByStatus).Methods(http.MethodGet)
+
+        api.Router = r
+
+        return &amp;api
+}</span>
+
+func (r *RESTful) LogRecover() <span class="cov8" title="1">{
+        if err := recover(); err != nil </span><span class="cov0" title="0">{
+                r.serviceLayer.Log.Error("Fail:", slog.String("stack", string(debug.Stack())))
+        }</span>
+}
+</pre>
+		
+		<pre class="file" id="file5" style="display: none">package rest
+
+import "errors"
+
+var errInvalidPatchRequest = errors.New("update data has empty values")
+
+type apiResponse struct {
+        Success bool        `json:"success"`
+        Error   string      `json:"error,omitempty"`
+        Data    interface{} `json:"data,omitempty"`
+}
+
+type TodoPatchRequest struct {
+        Title       string `json:"title"`
+        Description string `json:"description"`
+        Done        bool   `json:"done"`
+}
+
+func (update *TodoPatchRequest) Validate() error <span class="cov8" title="1">{
+        if update.Title == "" || update.Description == "" </span><span class="cov8" title="1">{
+                return errInvalidPatchRequest
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file6" style="display: none">package rest
+
+import (
+        "encoding/json"
+        "fmt"
+        "io"
+        "log/slog"
+        "net/http"
+        "strconv"
+        "strings"
+
+        "github.com/gorilla/mux"
+        "github.com/scriptdealer/to-do-go/known"
+)
+
+func (rest *RESTful) AllItems(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        defer rest.LogRecover()
+        todos, err := rest.serviceLayer.ToDos.GetAll(r.Context())
+        rest.serviceLayer.Log.Info("serving AllItems", slog.Int("count", len(todos)))
+        rest.respondWith(w, todos, err)
+}</span>
+
+func (rest *RESTful) GetItem(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        vars := mux.Vars(r)
+        id, _ := strconv.Atoi(vars["id"])
+        todo, err := rest.serviceLayer.ToDos.Get(id)
+        rest.respondWith(w, todo, err)
+}</span>
+
+func (rest *RESTful) FilterByStatus(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        todos, err := rest.serviceLayer.ToDos.GetAll(r.Context())
+        vars := mux.Vars(r)
+        status := vars["selector"]
+
+        result := []known.TodoItem{}
+        for i := range todos </span><span class="cov8" title="1">{
+                if todos[i].Done &amp;&amp; status == "done" </span><span class="cov8" title="1">{
+                        result = append(result, *todos[i])
+                }</span>
+
+                <span class="cov8" title="1">if !todos[i].Done &amp;&amp; status == "active" </span><span class="cov8" title="1">{
+                        result = append(result, *todos[i])
+                }</span>
+        }
+        <span class="cov8" title="1">rest.serviceLayer.Log.Info("serving filtered items", slog.Int("count", len(result)))
+        rest.respondWith(w, result, err)</span>
+}
+
+func (rest *RESTful) AddItem(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        var data TodoPatchRequest
+        reqBody, _ := io.ReadAll(r.Body)
+        _ = json.Unmarshal(reqBody, &amp;data)
+        rest.serviceLayer.Log.Info("adding item", slog.String("body", fmt.Sprintf("%+v", data)))
+
+        err := data.Validate()
+        if err == nil </span><span class="cov8" title="1">{
+                err = rest.serviceLayer.ToDos.Create(data.Title, data.Description, data.Done)
+        }</span>
+        <span class="cov8" title="1">rest.respondWith(w, nil, err)</span>
+}
+
+func (rest *RESTful) UpdateItem(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        var data TodoPatchRequest
+        vars := mux.Vars(r)
+        id, _ := strconv.Atoi(vars["id"])
+        err := json.NewDecoder(r.Body).Decode(&amp;data)
+        if err == nil </span><span class="cov8" title="1">{
+                rest.serviceLayer.Log.Info("updating item", slog.Int("id", id), slog.String("with", fmt.Sprintf("%+v", data)))
+                err = rest.serviceLayer.ToDos.Update(id, data.Title, data.Description, data.Done)
+        }</span>
+        <span class="cov8" title="1">rest.respondWith(w, nil, err)</span>
+}
+
+func (rest *RESTful) DeleteItem(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        if ok := rest.authCheck(r); !ok </span><span class="cov8" title="1">{
+                rest.respondWith(w, nil, fmt.Errorf("not authorized"))
+                return
+        }</span>
+        <span class="cov8" title="1">vars := mux.Vars(r)
+        id, _ := strconv.Atoi(vars["id"])
+        rest.serviceLayer.Log.Info("deleting item", slog.Int("id", id))
+        err := rest.serviceLayer.ToDos.Delete(id)
+        rest.respondWith(w, nil, err)</span>
+}
+
+func (rest *RESTful) authCheck(r *http.Request) bool <span class="cov8" title="1">{
+        authHeader := r.Header.Get("Authorization")
+        authPrefix := "Bearer "
+
+        if !strings.HasPrefix(authHeader, authPrefix) </span><span class="cov8" title="1">{
+                return false
+        }</span>
+
+        <span class="cov8" title="1">authKey := authHeader[len(authPrefix):]
+
+        return authKey == rest.staticAPIKey</span>
+}
+
+func (rest *RESTful) respondWith(w io.Writer, data any, err error) <span class="cov8" title="1">{
+        reply := apiResponse{}
+        if err == nil </span><span class="cov8" title="1">{
+                reply.Success = true
+                reply.Data = data
+        }</span> else<span class="cov8" title="1"> {
+                reply.Error = err.Error()
+        }</span>
+        <span class="cov8" title="1">err = json.NewEncoder(w).Encode(reply)
+        if err != nil </span><span class="cov0" title="0">{
+                rest.serviceLayer.Log.Warn("failed to respond", slog.String("reason", err.Error()))
+        }</span>
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

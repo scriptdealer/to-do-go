@@ -47,24 +47,25 @@ func (rest *RESTful) FilterByStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (rest *RESTful) AddItem(w http.ResponseWriter, r *http.Request) {
-	var data itemPatchRequest
+	var data TodoPatchRequest
 	reqBody, _ := io.ReadAll(r.Body)
 	_ = json.Unmarshal(reqBody, &data)
 	rest.serviceLayer.Log.Info("adding item", slog.String("body", fmt.Sprintf("%+v", data)))
 
 	err := data.Validate()
 	if err == nil {
-		err = rest.serviceLayer.ToDos.Create(data.Title, data.Description)
+		err = rest.serviceLayer.ToDos.Create(data.Title, data.Description, data.Done)
 	}
 	rest.respondWith(w, nil, err)
 }
 
 func (rest *RESTful) UpdateItem(w http.ResponseWriter, r *http.Request) {
-	var data itemPatchRequest
+	var data TodoPatchRequest
 	vars := mux.Vars(r)
 	id, _ := strconv.Atoi(vars["id"])
 	err := json.NewDecoder(r.Body).Decode(&data)
 	if err == nil {
+		rest.serviceLayer.Log.Info("updating item", slog.Int("id", id), slog.String("with", fmt.Sprintf("%+v", data)))
 		err = rest.serviceLayer.ToDos.Update(id, data.Title, data.Description, data.Done)
 	}
 	rest.respondWith(w, nil, err)

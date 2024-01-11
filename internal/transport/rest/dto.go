@@ -10,13 +10,13 @@ type apiResponse struct {
 	Data    interface{} `json:"data,omitempty"`
 }
 
-type itemPatchRequest struct {
+type TodoPatchRequest struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
 	Done        bool   `json:"done"`
 }
 
-func (update *itemPatchRequest) Validate() error {
+func (update *TodoPatchRequest) Validate() error {
 	if update.Title == "" || update.Description == "" {
 		return errInvalidPatchRequest
 	}

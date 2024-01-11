@@ -68,18 +68,21 @@ security_scan() {
 }
 
 unit_cover() {
-  rm -rf coverage/unit
-  mkdir -p coverage/unit
-  chmod 777 coverage/unit
+  # rm -rf tests/unit
+  mkdir -p tests/unit
+  chmod 777 tests/unit
   # run unit tests with cover option
-  if ! go test -cover -coverpkg=./... $(go list ./...) -args -test.gocoverdir="$PWD/coverage/unit";
+  if ! go test -cover -coverpkg=./... $(go list ./...) -coverprofile=./tests/unit/coverage.data -args -test.gocoverdir="$PWD/tests/unit";
+  # if ! go test -coverprofile=./tests/unit/coverage.data
   then
     echo -e "${RED}[UNIT TESTS FAILED]${NC}"
     print_fail
     return 1
   else
     echo -e "${GREEN}[UNIT TESTS PASSED]${NC}"
+    go tool cover -html=./tests/unit/coverage.data -o ./tests/unit_coverage.html 
   fi
+  rm tests/unit/cov*
 }
 
 generate_coverage_files() {

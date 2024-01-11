@@ -7,7 +7,7 @@ import (
 )
 
 func TestValidation(t *testing.T) {
-	data := itemPatchRequest{Title: "test"}
+	data := TodoPatchRequest{Title: "test"}
 	assert.EqualError(t, data.Validate(), errInvalidPatchRequest.Error())
 
 	data.Description = data.Title
