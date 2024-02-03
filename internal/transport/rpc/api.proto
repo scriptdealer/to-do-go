@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+import "google/protobuf/any.proto";
+import "google/protobuf/struct.proto";
+
+// Prerequisites
+// go install google.golang.org/protobuf/cmd/protoc-gen-go
+// go install google.golang.org/grpc/cmd/protoc-gen-go-grpc
+
+
+// option go_package = "google.golang.org/grpc/examples/route_guide/routeguide";
+
+package routeguide;
+
+// Interface exported by the server.
+service ToDoItems {
+  rpc GetAll(Point) returns (Feature) {}
+  rpc GetOne(RequestById) returns (Feature) {}
+}
+
+message RequestById {
+  int32 latitude = 1;
+  int32 longitude = 2;
+}
+
+message ApiReply {
+    // If request was dispatched properly.
+    boolean success = 1;
+
+    // The reason of failure.
+    string error = 2;
+
+    // The data of successful dispatch.
+    repeated google.protobuf.Any data = 3;
+
+    // google.protobuf.Struct to work with arbitrary JSON input. 
+    // The structpb package capable to produce a map[string]interface{} from a structpb.Struct via its AsMap() function.
+    repeated google.protobuf.Struct altData = 4;
+}
+
+
